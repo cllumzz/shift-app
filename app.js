@@ -6,9 +6,9 @@ const app = (() => {
     // ---- Firestore コレクション名 ----
     const COL_SHIFTS     = 'shifts';
     const COL_CLOSED     = 'closedDays';
+    const COL_SETTINGS   = 'settings';
 
-    // ---- localStorage キー（クライアント限定の設定のみ） ----
-    const PIN_KEY        = 'shift_admin_pin';
+    // ---- localStorage キー（セッション管理のみ） ----
     const AUTH_KEY       = 'shift_admin_authed';
     const STAFF_NAME_KEY = 'shift_last_name';
     const STAFF_COUNT_KEY= 'shift_staff_count';
@@ -63,9 +63,14 @@ const app = (() => {
         await ref.set({ days });
     };
 
-    // ---- PIN 管理（localStorage） ----
-    const getPin    = ()    => localStorage.getItem(PIN_KEY) || DEFAULT_PIN;
-    const setPin    = (pin) => localStorage.setItem(PIN_KEY, pin);
+    // ---- PIN 管理（Firestore） ----
+    const getPinFromFirestore = async () => {
+        const snap = await db.collection(COL_SETTINGS).doc('adminPin').get();
+        return snap.exists ? (snap.data().pin || DEFAULT_PIN) : DEFAULT_PIN;
+    };
+    const savePinToFirestore = async (pin) => {
+        await db.collection(COL_SETTINGS).doc('adminPin').set({ pin });
+    };
     const isAuthed  = ()    => sessionStorage.getItem(AUTH_KEY) === '1';
     const setAuthed = ()    => sessionStorage.setItem(AUTH_KEY, '1');
     const clearAuth = ()    => sessionStorage.removeItem(AUTH_KEY);
@@ -368,7 +373,7 @@ const app = (() => {
         };
 
         document.querySelectorAll('.key-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const val = btn.dataset.val;
                 if      (val === 'clear') { entered = ''; errorEl.textContent = ''; }
                 else if (val === 'del')   { entered = entered.slice(0, -1); }
@@ -377,7 +382,9 @@ const app = (() => {
                 updateDots();
 
                 if (entered.length === 4) {
-                    if (entered === getPin()) {
+                    // Firestore からPINを取得して照合
+                    const correctPin = await getPinFromFirestore();
+                    if (entered === correctPin) {
                         setAuthed();
                         showDashboard();
                     } else {
@@ -717,13 +724,13 @@ const app = (() => {
         // 初期読み込み（来月・期間未選択状態）
         renderCalendar([], []);
 
-        // ---- PIN変更 ----
-        document.getElementById('change-pin-btn')?.addEventListener('click', () => {
+        // ---- PIN変更（Firestore保存） ----
+        document.getElementById('change-pin-btn')?.addEventListener('click', async () => {
             const newPin = prompt('新しい4桁のPINを入力してください:');
             if (!newPin) return;
             if (!/^\d{4}$/.test(newPin)) { alert('4桁の数字で入力してください。'); return; }
-            setPin(newPin);
-            alert('PINを変更しました。');
+            await savePinToFirestore(newPin);
+            alert('PINを変更しました。全端末に反映されました。');
         });
 
         // ---- ログアウト ----

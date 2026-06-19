@@ -15,13 +15,17 @@ service cloud.firestore {
     }
 
     // ---- 休業日設定 ----
-    // ・誰でも読み取り可能（スタッフ画面で休業日表示するため）
-    // ・誰でも書き込み可能（店長が管理するが認証は PIN のみのため）
-    // ・days フィールドが整数配列であることを検証
     match /closedDays/{yearMonth} {
       allow read:  if true;
       allow write: if request.resource.data.keys().hasOnly(['days'])
                    && request.resource.data.days is list;
+    }
+
+    // ---- アプリ設定（PINなど） ----
+    // ・PINの読み取りは全員可能（照合のため）
+    // ・書き込みは全員可能（認証はクライアント側のPIN照合で担保）
+    match /settings/{docId} {
+      allow read, write: if true;
     }
 
     // シフトデータのバリデーション関数
