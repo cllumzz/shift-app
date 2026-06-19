@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト提出 | スタッフ用</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>シフト提出</h1>
+            <p style="font-size:0.82rem; color:#888; margin-top:4px;">水曜は定休日のため選択できません</p>
+        </header>
+
+        <main>
+            <form id="shift-form">
+                <div class="form-group">
+                    <label for="staff-name">お名前</label>
+                    <input type="text" id="staff-name" placeholder="例: 山田太郎" required autocomplete="name">
+                    <div id="load-status" class="load-status"></div>
+                </div>
+
+                <div class="form-group" style="display:flex; gap:12px;">
+                    <div style="flex:1;">
+                        <label for="target-month">対象月</label>
+                        <input type="month" id="target-month" required>
+                    </div>
+                    <div style="flex:1;">
+                        <label for="target-half">期間</label>
+                        <select id="target-half" required>
+                            <option value="first">前半 (1〜15日)</option>
+                            <option value="second">後半 (16日〜月末)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>シフト希望</label>
+                    <div class="radio-group">
+                        <label class="radio-card">
+                            <input type="radio" name="shift-type" value="all" checked>
+                            <div class="card-content">
+                                <h3>全日出勤可能</h3>
+                                <p>定休日・休業日以外すべて</p>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="shift-type" value="specific">
+                            <div class="card-content">
+                                <h3>個別指定</h3>
+                                <p>出勤できる日を選ぶ</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="all-days-options" class="form-group">
+                    <label>土日祝の出勤時間</label>
+                    <select id="all-days-weekend-time">
+                        <option value="17:30">17:30のみ可能</option>
+                        <option value="16:30">16:30から可能</option>
+                    </select>
+                    <p style="font-size:0.8rem; color:#888; margin-top:6px;">※平日は17:30固定です。</p>
+                </div>
+
+                <div id="specific-days-container" class="form-group hidden">
+                    <label>出勤可能日を選択</label>
+                    <div class="form-tips">
+                        平日タップ → <strong>17:30</strong> で出勤確定<br>
+                        土日祝タップ → <strong>17:30</strong>（もう一度で <strong>16:30</strong>）<br>
+                        もう一度タップで解除
+                    </div>
+                    <div class="date-grid" id="date-grid"></div>
+                    <label for="notes" style="margin-top:12px;">備考</label>
+                    <textarea id="notes" placeholder="例: 10日は18時から可能です"></textarea>
+                </div>
+
+                <button type="submit" id="submit-btn" class="btn-primary">シフトを提出する</button>
+            </form>
+
+            <div id="success-message" class="hidden message success">
+                <p>シフトを提出しました！ありがとうございます。</p>
+                <button type="button" class="btn-secondary" onclick="location.reload()">もう一度提出・修正する</button>
+            </div>
+        </main>
+
+        <footer>
+            <a href="admin.html" class="admin-link">店長用確認画面へ</a>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- アプリ設定 & ロジック -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            app.initStaffView();
+        });
+    </script>
+</body>
+</html>

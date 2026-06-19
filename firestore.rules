@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- シフト提出データ ----
+    // ・誰でも読み取り可能（スタッフが自分の提出内容を再読込するため）
+    // ・誰でも作成・上書き可能（スタッフが提出するため）
+    // ・削除は禁止（データ保護）
+    // ・1ドキュメントは 100KB 以下に制限
+    match /shifts/{docId} {
+      allow read:   if true;
+      allow create: if validShift(request.resource.data);
+      allow update: if validShift(request.resource.data);
+      allow delete: if false;
+    }
+
+    // ---- 休業日設定 ----
+    // ・誰でも読み取り可能（スタッフ画面で休業日表示するため）
+    // ・誰でも書き込み可能（店長が管理するが認証は PIN のみのため）
+    // ・days フィールドが整数配列であることを検証
+    match /closedDays/{yearMonth} {
+      allow read:  if true;
+      allow write: if request.resource.data.keys().hasOnly(['days'])
+                   && request.resource.data.days is list;
+    }
+
+    // シフトデータのバリデーション関数
+    function validShift(data) {
+      return data.keys().hasAll(['name', 'targetMonth', 'targetHalf', 'shiftType'])
+        && data.name       is string && data.name.size()        > 0 && data.name.size()        <= 50
+        && data.targetMonth is string && data.targetMonth.matches('\\d{4}-\\d{2}')
+        && data.targetHalf  in ['first', 'second']
+        && data.shiftType   in ['all', 'specific'];
+    }
+  }
+}
