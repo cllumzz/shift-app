@@ -528,6 +528,152 @@ button { font-family: inherit; cursor: pointer; border: none; }
 footer { margin-top: 32px; text-align: center; }
 .admin-link { color: var(--muted); font-size: 0.88rem; text-decoration: underline; }
 
+/* ===== 提出一覧 ===== */
+.submissions-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    padding: 0 2px;
+}
+
+.submission-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.1s;
+}
+.submission-row:hover { background: #f5fff5; }
+.submission-row:active { background: #e8f5e9; }
+
+.submission-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+.submission-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.sub-type-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: rgba(76,175,80,0.1);
+    color: #2E7D32;
+}
+.sub-notes-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: rgba(255,152,0,0.12);
+    color: #E65100;
+    font-weight: 600;
+}
+
+/* ===== 詳細モーダル ===== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 8000;
+    padding: 0;
+}
+@media (min-width: 500px) {
+    .modal-overlay { align-items: center; padding: 20px; }
+}
+
+.modal-card {
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 500px;
+    padding: 24px 20px 36px;
+    max-height: 85dvh;
+    overflow-y: auto;
+}
+@media (min-width: 500px) {
+    .modal-card { border-radius: 16px; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.modal-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.modal-close-btn {
+    background: #f0f0f0;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+}
+
+.modal-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+.modal-row:last-child { border-bottom: none; }
+
+.modal-label {
+    font-size: 0.76rem;
+    color: var(--muted);
+    font-weight: 500;
+}
+.modal-value {
+    font-size: 0.95rem;
+    color: var(--text);
+    line-height: 1.6;
+}
+.modal-dates {
+    font-size: 0.85rem;
+    line-height: 1.8;
+    word-break: break-all;
+}
+.modal-notes {
+    white-space: pre-wrap;
+    background: #f8f8f8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    min-height: 48px;
+}
+.modal-timestamp {
+    font-size: 0.82rem;
+    color: var(--muted);
+}
+
 /* ===== モバイル対応 ===== */
 @media (max-width: 640px) {
     html { font-size: 15px; }

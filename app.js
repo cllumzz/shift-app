@@ -458,10 +458,103 @@ const app = (() => {
                 });
         };
 
+        // ---- モーダル：スタッフ詳細表示 ----
+        const showDetailModal = (sub) => {
+            const modal    = document.getElementById('detail-modal');
+            const title    = document.getElementById('modal-title');
+            const body     = document.getElementById('modal-body');
+            const [y, m]   = (sub.targetMonth || '').split('-');
+            const halfLabel = sub.targetHalf === 'first' ? '前半（1〜15日）' : '後半（16日〜月末）';
+
+            title.textContent = `${sub.name} — ${parseInt(m)}月 ${halfLabel}`;
+
+            let html = '';
+
+            // シフトタイプ
+            if (sub.shiftType === 'all') {
+                html += `<div class="modal-row"><span class="modal-label">提出内容</span><span class="modal-value">全日出勤可能</span></div>`;
+                html += `<div class="modal-row"><span class="modal-label">土日祝の時間</span><span class="modal-value">${sub.allDaysWeekendTime || '17:30'} から</span></div>`;
+            } else {
+                const dates = (sub.dates || []);
+                if (dates.length > 0) {
+                    const dateStr = dates.map(d => `${d.dateLabel}(${d.time})`).join('　');
+                    html += `<div class="modal-row"><span class="modal-label">出勤可能日</span><span class="modal-value modal-dates">${dateStr}</span></div>`;
+                } else {
+                    html += `<div class="modal-row"><span class="modal-label">出勤可能日</span><span class="modal-value" style="color:var(--danger);">なし（休み希望）</span></div>`;
+                }
+            }
+
+            // 備考
+            html += `<div class="modal-row modal-notes-row">
+                <span class="modal-label">備考</span>
+                <span class="modal-value modal-notes">${sub.notes ? sub.notes.replace(/\n/g, '<br>') : '<span style="color:#bbb;">なし</span>'}</span>
+            </div>`;
+
+            // 提出日時
+            if (sub.updatedAt) {
+                const d = sub.updatedAt.toDate ? sub.updatedAt.toDate() : new Date(sub.updatedAt);
+                html += `<div class="modal-row"><span class="modal-label">提出日時</span><span class="modal-value modal-timestamp">${d.toLocaleString('ja-JP')}</span></div>`;
+            }
+
+            body.innerHTML = html;
+            modal.classList.remove('hidden');
+        };
+
+        // モーダルを閉じる
+        document.getElementById('modal-close')?.addEventListener('click', () => {
+            document.getElementById('detail-modal').classList.add('hidden');
+        });
+        document.getElementById('detail-modal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget)
+                e.currentTarget.classList.add('hidden');
+        });
+
+        // ---- 提出一覧描画（備考確認用） ----
+        const renderSubmissionsList = (submissions) => {
+            const section = document.getElementById('submissions-list-section');
+            const list    = document.getElementById('submissions-list');
+            if (!section || !list) return;
+
+            if (submissions.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            section.style.display = 'block';
+            list.innerHTML = '';
+
+            const sorted = [...submissions].sort((a, b) =>
+                (a.name || '').localeCompare(b.name || '', 'ja')
+            );
+
+            sorted.forEach(sub => {
+                const row = document.createElement('div');
+                row.className = 'submission-row';
+
+                const typeLabel = sub.shiftType === 'all'
+                    ? `全日（土日祝: ${sub.allDaysWeekendTime || '17:30'}〜）`
+                    : `個別 ${(sub.dates || []).length}日`;
+
+                const hasNotes = sub.notes && sub.notes.trim();
+
+                row.innerHTML = `
+                    <div class="submission-name">${sub.name}</div>
+                    <div class="submission-meta">
+                        <span class="sub-type-badge">${typeLabel}</span>
+                        ${hasNotes ? '<span class="sub-notes-badge">備考あり</span>' : ''}
+                    </div>
+                `;
+                row.addEventListener('click', () => showDetailModal(sub));
+                list.appendChild(row);
+            });
+        };
+
         // ---- カレンダー描画 ----
         const renderCalendar = (submissions, closedDays) => {
             calendarHeader.innerHTML = '';
             calendarGrid.innerHTML   = '';
+
+            // 提出一覧も同時更新
+            renderSubmissionsList(submissions);
 
             dayNames.forEach(d => {
                 const div = document.createElement('div');
@@ -579,6 +672,11 @@ const app = (() => {
                                 const badge = document.createElement('div');
                                 badge.className = 'shift-badge' + (workTime === '16:30' ? ' time-1630' : '');
                                 badge.textContent = `${sub.name} (${workTime})`;
+                                // バッジタップで詳細モーダル（セルの休業日設定と区別）
+                                badge.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    showDetailModal(sub);
+                                });
                                 shiftsContainer.appendChild(badge);
                             }
                         });

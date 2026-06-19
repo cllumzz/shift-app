@@ -99,6 +99,15 @@
                     <span class="legend-item"><span class="badge-demo green">名前 (17:30)</span>通常</span>
                 </div>
 
+                <!-- 提出一覧（備考確認用） -->
+                <div id="submissions-list-section" style="display:none; margin-bottom:16px;">
+                    <div class="submissions-list-header">
+                        <span>提出一覧</span>
+                        <span style="font-size:0.78rem; color:var(--muted);">名前をタップで詳細・備考を確認</span>
+                    </div>
+                    <div id="submissions-list"></div>
+                </div>
+
                 <!-- カレンダー -->
                 <div class="calendar-container">
                     <div class="calendar-header" id="calendar-header"></div>
@@ -115,6 +124,17 @@
 
         </div>
     </div><!-- /#admin-content -->
+
+    <!-- 詳細モーダル -->
+    <div id="detail-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">詳細</h3>
+                <button id="modal-close" class="modal-close-btn">✕</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
 
     <!-- Firebase SDK (compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
