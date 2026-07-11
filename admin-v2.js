@@ -68,12 +68,21 @@ const adminV2 = (() => {
             startTime: String(item.startTime || '17:30').trim()
         }));
 
-        await db.collection(COL_SETTINGS).doc(assignmentDocId(state.yearMonth, state.half)).set({
-            targetMonth: state.yearMonth,
-            targetHalf: state.half,
-            days: { [day]: cleaned },
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        const docRef = db.collection(COL_SETTINGS).doc(assignmentDocId(state.yearMonth, state.half));
+        try {
+            await docRef.update({
+                [`days.${day}`]: cleaned,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (err) {
+            if (err.code !== 'not-found') throw err;
+            await docRef.set({
+                targetMonth: state.yearMonth,
+                targetHalf: state.half,
+                days: { [day]: cleaned },
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
     };
 
     const loadData = async () => {

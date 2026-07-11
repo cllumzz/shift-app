@@ -83,14 +83,24 @@ const app = (() => {
                 name: String(a.name).trim(),
                 startTime: String(a.startTime).trim()
             }));
-        await db.collection(COL_SETTINGS)
-            .doc(assignmentDocId(yearMonth, half))
-            .set({
-                targetMonth: yearMonth,
-                targetHalf: half,
-                days: { [day]: cleaned },
+        const docRef = db.collection(COL_SETTINGS).doc(assignmentDocId(yearMonth, half));
+        try {
+            await docRef.update({
+                [`days.${day}`]: cleaned,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            });
+        } catch (e) {
+            if (e.code === 'not-found') {
+                await docRef.set({
+                    targetMonth: yearMonth,
+                    targetHalf: half,
+                    days: { [day]: cleaned },
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                throw e;
+            }
+        }
     };
 
     const getAssignments = async (yearMonth, half) => {
