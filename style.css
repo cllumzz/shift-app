@@ -516,10 +516,34 @@ button { font-family: inherit; cursor: pointer; border: none; }
     text-align: left;
 }
 .shift-badge.time-1630 { background: rgba(21,101,192,0.1); color: var(--sat); }
+.candidate-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+    padding: 4px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+}
+.candidate-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #455a64;
+}
+.candidate-time-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+    gap: 3px;
+}
 .candidate-badge {
     width: 100%;
     border: 1px solid transparent;
     cursor: pointer;
+    text-align: center;
 }
 .candidate-badge:hover {
     border-color: rgba(76,175,80,0.35);

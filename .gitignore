@@ -1,3 +1,6 @@
 .DS_Store
 .claude/
 server.py
+
+# Local Netlify folder
+.netlify

@@ -875,50 +875,52 @@ const app = (() => {
 
                         available.forEach(({ sub, workTime }) => {
                             const assignableTimes = getAssignableTimes(workTime, dow);
-                            const badge = document.createElement('button');
-                            badge.type = 'button';
-                            badge.className = 'shift-badge candidate-badge'
-                                + (workTime === '16:30' ? ' time-1630' : '')
-                                + (assignedNames.has(sub.name) ? ' already-assigned' : '');
-                            badge.textContent = assignedNames.has(sub.name)
-                                ? `${sub.name} 採用済`
-                                : assignableTimes.length > 1
-                                    ? `＋ ${sub.name} (${assignableTimes.join(' / ')})`
-                                    : `＋ ${sub.name} (${assignableTimes[0]})`;
-                            badge.title = assignedNames.has(sub.name)
-                                ? 'この人は確定済みです'
-                                : 'この人をこの日のシフトに採用';
-                            badge.addEventListener('click', async (e) => {
-                                e.stopPropagation();
-                                if (assignedNames.has(sub.name)) {
-                                    showDetailModal(sub);
-                                    return;
-                                }
-                                const startTime = assignableTimes.length > 1
-                                    ? (prompt(`${sub.name} さんの開始時間を選んでください（16:30 または 17:30）`, '17:30') || '').trim()
-                                    : assignableTimes[0];
-                                if (!startTime) return;
-                                if (!assignableTimes.includes(startTime)) {
-                                    alert(`${assignableTimes.join(' または ')} のどちらかで入力してください。`);
-                                    return;
-                                }
-                                badge.disabled = true;
-                                badge.textContent = '保存中...';
-                                try {
-                                    await saveAssignments(yearMonth, half, i, [
-                                        ...assigned,
-                                        { name: sub.name, startTime }
-                                    ]);
-                                } catch (err) {
-                                    console.error('確定シフト保存エラー:', err);
-                                    alert('確定シフトの保存に失敗しました。\n' + err.message);
-                                    badge.disabled = false;
-                                    badge.textContent = assignableTimes.length > 1
-                                        ? `＋ ${sub.name} (${assignableTimes.join(' / ')})`
-                                        : `＋ ${sub.name} (${assignableTimes[0]})`;
-                                }
+                            const wrap = document.createElement('div');
+                            wrap.className = 'candidate-option';
+
+                            const nameLabel = document.createElement('div');
+                            nameLabel.className = 'candidate-name';
+                            nameLabel.textContent = assignedNames.has(sub.name) ? `${sub.name} 採用済` : sub.name;
+                            wrap.appendChild(nameLabel);
+
+                            const timeRow = document.createElement('div');
+                            timeRow.className = 'candidate-time-row';
+
+                            assignableTimes.forEach(startTime => {
+                                const badge = document.createElement('button');
+                                badge.type = 'button';
+                                badge.className = 'shift-badge candidate-badge'
+                                    + (startTime === '16:30' ? ' time-1630' : '')
+                                    + (assignedNames.has(sub.name) ? ' already-assigned' : '');
+                                badge.textContent = assignedNames.has(sub.name) ? '詳細' : `＋${startTime}`;
+                                badge.title = assignedNames.has(sub.name)
+                                    ? 'この人は確定済みです'
+                                    : `${sub.name} さんを ${startTime} で採用`;
+                                badge.addEventListener('click', async (e) => {
+                                    e.stopPropagation();
+                                    if (assignedNames.has(sub.name)) {
+                                        showDetailModal(sub);
+                                        return;
+                                    }
+                                    badge.disabled = true;
+                                    badge.textContent = '保存中';
+                                    try {
+                                        await saveAssignments(yearMonth, half, i, [
+                                            ...assigned,
+                                            { name: sub.name, startTime }
+                                        ]);
+                                    } catch (err) {
+                                        console.error('確定シフト保存エラー:', err);
+                                        alert('確定シフトの保存に失敗しました。\n' + err.message);
+                                        badge.disabled = false;
+                                        badge.textContent = `＋${startTime}`;
+                                    }
+                                });
+                                timeRow.appendChild(badge);
                             });
-                            shiftsContainer.appendChild(badge);
+
+                            wrap.appendChild(timeRow);
+                            shiftsContainer.appendChild(wrap);
                         });
 
                         const assignBox = document.createElement('div');
