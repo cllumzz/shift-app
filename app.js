@@ -1045,9 +1045,10 @@ const app = (() => {
 
                         cell.appendChild(assignBox);
                         cell.appendChild(shiftsContainer);
-                        cell.style.cursor = 'pointer';
-                        cell.title = 'タップして休業日に設定';
-                        cell.addEventListener('click', async () => {
+                        dateHeader.style.cursor = 'pointer';
+                        dateHeader.title = 'タップして休業日に設定';
+                        dateHeader.addEventListener('click', async (e) => {
+                            e.stopPropagation();
                             if (confirm(`${month}/${i} を休業日に設定しますか？`)) {
                                 await toggleClosedDay(yearMonth, i);
                             }
