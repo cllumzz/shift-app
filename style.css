@@ -433,6 +433,7 @@ button { font-family: inherit; cursor: pointer; border: none; }
     background: rgba(21,101,192,0.1); color: var(--sat);
 }
 .badge-demo.green { background: rgba(76,175,80,0.1); color: #2E7D32; }
+.badge-demo.assigned { background: #1B5E20; color: #fff; }
 
 /* Calendar */
 .calendar-container {
@@ -464,7 +465,7 @@ button { font-family: inherit; cursor: pointer; border: none; }
 }
 
 .calendar-cell {
-    min-height: 88px;
+    min-height: 156px;
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 5px;
@@ -496,7 +497,12 @@ button { font-family: inherit; cursor: pointer; border: none; }
 .day-tag-cell.teikyu { background: #CFD8DC; color: var(--teikyu-text); }
 .day-tag-cell.kyugyo { background: #FFE0B2; color: var(--kyugyo-text); }
 
-.cell-shifts { display: flex; flex-direction: column; gap: 2px; }
+.cell-shifts {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 5px;
+}
 
 .shift-badge {
     background: rgba(76,175,80,0.12);
@@ -507,8 +513,90 @@ button { font-family: inherit; cursor: pointer; border: none; }
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-align: left;
 }
 .shift-badge.time-1630 { background: rgba(21,101,192,0.1); color: var(--sat); }
+.candidate-badge {
+    width: 100%;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+.candidate-badge:hover {
+    border-color: rgba(76,175,80,0.35);
+    background: rgba(76,175,80,0.18);
+}
+.candidate-badge.already-assigned {
+    background: #eef2f7;
+    color: #94a3b8;
+    cursor: default;
+}
+
+.assignment-box {
+    border: 1px solid rgba(76,175,80,0.24);
+    background: #f7fff8;
+    border-radius: 6px;
+    padding: 5px;
+    margin-top: auto;
+}
+.assignment-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #1B5E20;
+    margin-bottom: 4px;
+}
+.assignment-title span {
+    font-weight: 500;
+    color: #78909c;
+    text-align: right;
+}
+.assignment-empty {
+    font-size: 0.72rem;
+    color: #9aa5b1;
+    background: #fff;
+    border-radius: 4px;
+    padding: 3px 5px;
+}
+.assignment-row {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 4px;
+    background: #fff;
+    border-radius: 5px;
+    padding: 3px;
+}
+.assignment-row + .assignment-row { margin-top: 3px; }
+.assignment-time {
+    width: 54px;
+    padding: 2px 1px;
+    border: 1px solid #c8e6c9;
+    border-radius: 4px;
+    font-size: 0.66rem;
+    color: #1B5E20;
+    background: #fff;
+}
+.assignment-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1B5E20;
+}
+.assignment-remove {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffebee;
+    color: var(--danger);
+    font-size: 0.82rem;
+    line-height: 1;
+}
+.assignment-remove:hover { background: #ffcdd2; }
 
 /* 既存データ読み込みステータス */
 .load-status {
@@ -719,7 +807,15 @@ footer { margin-top: 32px; text-align: center; }
         flex-wrap: wrap;
         gap: 4px;
         flex: 1;
+        margin-top: 0;
     }
     .shift-badge { font-size: 0.72rem; }
+    .assignment-box {
+        flex: 1.4;
+        margin-top: 0;
+        min-width: 170px;
+    }
+    .assignment-title { flex-direction: column; gap: 0; }
+    .assignment-title span { text-align: left; }
     .day-tag-cell { margin-top: 0; font-size: 0.72rem; }
 }

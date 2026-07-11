@@ -18,6 +18,8 @@ const app = (() => {
     // "2026-07_first_山田太郎" のような形式でユニークを保証
     const shiftDocId = (yearMonth, half, name) =>
         `${yearMonth}_${half}_${name.trim()}`;
+    const assignmentDocId = (yearMonth, half) =>
+        `assigned_${yearMonth}_${half}`;
 
     // ---- Firestore: シフト保存（上書き） ----
     const saveShift = async (submission) => {
@@ -61,6 +63,31 @@ const app = (() => {
         if (idx >= 0) days.splice(idx, 1);
         else          { days.push(day); days.sort((a, b) => a - b); }
         await ref.set({ days });
+    };
+
+    // ---- Firestore: 店長が確定したシフト ----
+    const saveAssignments = async (yearMonth, half, day, assignments) => {
+        const cleaned = assignments
+            .filter(a => a && a.name && a.startTime)
+            .map(a => ({
+                name: String(a.name).trim(),
+                startTime: String(a.startTime).trim()
+            }));
+        await db.collection(COL_SETTINGS)
+            .doc(assignmentDocId(yearMonth, half))
+            .set({
+                targetMonth: yearMonth,
+                targetHalf: half,
+                [`days.${day}`]: cleaned,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+    };
+
+    const getAssignments = async (yearMonth, half) => {
+        const snap = await db.collection(COL_SETTINGS)
+            .doc(assignmentDocId(yearMonth, half))
+            .get();
+        return snap.exists ? (snap.data().days || {}) : {};
     };
 
     // ---- PIN 管理（Firestore） ----
@@ -231,14 +258,15 @@ const app = (() => {
                     const timeBadge = document.createElement('span');
                     timeBadge.className = 'time-badge hidden';
 
-                    const fixedLabel = !day.isWeekendOrHoliday
+                    const isEarlySelectable = day.dayOfWeek === 5 || day.isWeekendOrHoliday;
+                    const fixedLabel = !isEarlySelectable
                         ? '<span class="fixed-time">17:30固定</span>' : '';
                     btn.innerHTML = `<span class="day-label">${day.label}<small>(${day.dayName})</small></span>${fixedLabel}`;
                     btn.appendChild(timeBadge);
 
                     btn.addEventListener('click', () => {
                         let cur = selectedDates.get(day.label);
-                        if (day.isWeekendOrHoliday) {
+                        if (isEarlySelectable) {
                             if (!cur) {
                                 selectedDates.set(day.label, '17:30');
                                 btn.classList.add('selected');
@@ -428,21 +456,24 @@ const app = (() => {
             staffCountInput.value = getStaffCount() || '';
             staffCountInput.addEventListener('change', () => {
                 setStaffCount(parseInt(staffCountInput.value, 10) || 0);
-                renderCalendar(currentShifts, currentClosedDays);
+                renderCalendar(currentShifts, currentClosedDays, currentAssignments);
             });
         }
 
         const dayNames = ['日','月','火','水','木','金','土'];
         let unsubscribeShifts = null;
         let unsubscribeClosed = null;
+        let unsubscribeAssignments = null;
         let currentShifts     = [];
         let currentClosedDays = [];
+        let currentAssignments = {};
 
         // ---- リアルタイムリスナー開始 ----
         const startListeners = (yearMonth, half) => {
             // 前回のリスナーを解除
             if (unsubscribeShifts) unsubscribeShifts();
             if (unsubscribeClosed) unsubscribeClosed();
+            if (unsubscribeAssignments) unsubscribeAssignments();
 
             // シフトのリアルタイム購読
             unsubscribeShifts = db.collection(COL_SHIFTS)
@@ -450,7 +481,7 @@ const app = (() => {
                 .where('targetHalf',  '==', half)
                 .onSnapshot(snap => {
                     currentShifts = snap.docs.map(d => d.data());
-                    renderCalendar(currentShifts, currentClosedDays);
+                    renderCalendar(currentShifts, currentClosedDays, currentAssignments);
                 }, err => {
                     console.error('シフト購読エラー:', err);
                     noData.textContent = 'データ取得エラー: ' + err.message;
@@ -461,7 +492,18 @@ const app = (() => {
             unsubscribeClosed = db.collection(COL_CLOSED).doc(yearMonth)
                 .onSnapshot(snap => {
                     currentClosedDays = snap.exists ? (snap.data().days || []) : [];
-                    renderCalendar(currentShifts, currentClosedDays);
+                    renderCalendar(currentShifts, currentClosedDays, currentAssignments);
+                });
+
+            // 確定シフトのリアルタイム購読
+            unsubscribeAssignments = db.collection(COL_SETTINGS)
+                .doc(assignmentDocId(yearMonth, half))
+                .onSnapshot(snap => {
+                    currentAssignments = snap.exists ? (snap.data().days || {}) : {};
+                    renderCalendar(currentShifts, currentClosedDays, currentAssignments);
+                }, err => {
+                    console.error('確定シフト購読エラー:', err);
+                    alert('確定シフトの取得に失敗しました: ' + err.message);
                 });
         };
 
@@ -555,8 +597,171 @@ const app = (() => {
             });
         };
 
+        const getAvailableForDay = (submissions, month, day, dow, isHoli) => {
+            const dateLabel = `${month}/${day}`;
+            const isEarlyDay = dow === 5 || dow === 0 || dow === 6 || isHoli;
+
+            return submissions
+                .map(sub => {
+                    let willWork = false;
+                    let workTime = '17:30';
+
+                    if (sub.shiftType === 'all') {
+                        willWork = true;
+                        if (isEarlyDay) workTime = sub.allDaysWeekendTime || '17:30';
+                    } else if (sub.dates) {
+                        const match = sub.dates.find(d => d.dateLabel === dateLabel);
+                        if (match) {
+                            willWork = true;
+                            workTime = match.time || '17:30';
+                        }
+                    }
+
+                    return willWork ? { sub, workTime } : null;
+                })
+                .filter(Boolean)
+                .sort((a, b) => {
+                    if (a.workTime !== b.workTime) return a.workTime.localeCompare(b.workTime);
+                    return (a.sub.name || '').localeCompare(b.sub.name || '', 'ja');
+                });
+        };
+
+        const getStaffingHint = (dow, isHoli) => {
+            const isEarlyDay = dow === 5 || dow === 0 || dow === 6 || isHoli;
+            return isEarlyDay ? '目安 16:30×1 / 17:30×1' : '目安 17:30×2';
+        };
+
+        const getAssignableTimes = (workTime, dow) => {
+            const isFriSatSun = dow === 5 || dow === 6 || dow === 0;
+            if (isFriSatSun && workTime === '16:30') return ['16:30', '17:30'];
+            return [workTime || '17:30'];
+        };
+
+        const normalizeAssignments = (items) =>
+            [...(items || [])]
+                .filter(a => a && a.name)
+                .sort((a, b) => {
+                    const at = a.startTime || '';
+                    const bt = b.startTime || '';
+                    if (at !== bt) return at.localeCompare(bt);
+                    return (a.name || '').localeCompare(b.name || '', 'ja');
+                });
+
+        const downloadCanvas = (canvas, filename) => {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        };
+
+        const drawRoundRect = (ctx, x, y, w, h, r) => {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        };
+
+        const exportShiftImage = async (half) => {
+            const yearMonth = filterMonth.value;
+            if (!yearMonth) {
+                alert('対象月を選択してください。');
+                return;
+            }
+
+            const [yearStr, monthStr] = yearMonth.split('-');
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10);
+            const closedDays = await getClosedDays(yearMonth).catch(() => []);
+            const assignments = await getAssignments(yearMonth, half).catch(err => {
+                alert('確定シフトの取得に失敗しました: ' + err.message);
+                return {};
+            });
+
+            const days = getDaysInPeriod(yearMonth, half, closedDays)
+                .filter(day => !day.isUnavailable);
+            const halfLabel = half === 'first' ? '前半' : '後半';
+            const scale = 2;
+            const width = 1080;
+            const rowHeight = 96;
+            const headerHeight = 160;
+            const footerHeight = 46;
+            const height = headerHeight + days.length * rowHeight + footerHeight;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale, scale);
+
+            ctx.fillStyle = '#f6f8fb';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = '#1f2937';
+            ctx.font = '700 44px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillText(`${year}年${month}月 シフト表（${halfLabel}）`, 48, 72);
+
+            ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('確定済みの開始時間のみ表示', 50, 112);
+
+            const x = 40;
+            const tableW = width - 80;
+            const dateW = 190;
+            const staffW = tableW - dateW;
+            let y = headerHeight;
+
+            ctx.fillStyle = '#e8f5e9';
+            drawRoundRect(ctx, x, y - 54, tableW, 46, 12);
+            ctx.fill();
+            ctx.fillStyle = '#1b5e20';
+            ctx.font = '700 22px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillText('日付', x + 26, y - 24);
+            ctx.fillText('確定シフト', x + dateW + 26, y - 24);
+
+            days.forEach((day, index) => {
+                const rowY = y + index * rowHeight;
+                const isSun = day.dayOfWeek === 0 || day.isHoliday;
+                const isSat = day.dayOfWeek === 6;
+                const entries = normalizeAssignments(assignments[day.day]);
+                const bg = index % 2 === 0 ? '#ffffff' : '#fbfdff';
+
+                ctx.fillStyle = bg;
+                drawRoundRect(ctx, x, rowY, tableW, rowHeight - 10, 10);
+                ctx.fill();
+
+                ctx.fillStyle = isSun ? '#c62828' : isSat ? '#1565c0' : '#111827';
+                ctx.font = '700 28px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                ctx.fillText(`${month}/${day.day}`, x + 26, rowY + 38);
+                ctx.font = '500 19px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                ctx.fillText(`(${day.dayName})`, x + 106, rowY + 38);
+
+                ctx.fillStyle = '#d8dee9';
+                ctx.fillRect(x + dateW, rowY + 15, 1, rowHeight - 40);
+
+                if (entries.length === 0) {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '500 24px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                    ctx.fillText('未確定', x + dateW + 26, rowY + 43);
+                } else {
+                    ctx.fillStyle = '#111827';
+                    ctx.font = '700 25px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                    const text = entries.map(e => `${e.startTime} ${e.name}`).join('   /   ');
+                    ctx.fillText(text, x + dateW + 26, rowY + 43, staffW - 52);
+                }
+            });
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '500 18px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillText('Hoobi Shift', 48, height - 18);
+
+            downloadCanvas(canvas, `shift_${yearMonth}_${halfLabel}.png`);
+        };
+
         // ---- カレンダー描画 ----
-        const renderCalendar = (submissions, closedDays) => {
+        const renderCalendar = (submissions, closedDays, assignmentsByDay = {}) => {
             calendarHeader.innerHTML = '';
             calendarGrid.innerHTML   = '';
 
@@ -662,32 +867,119 @@ const app = (() => {
                         });
 
                     } else {
+                        const assigned = normalizeAssignments(assignmentsByDay[i]);
+                        const available = getAvailableForDay(submissions, month, i, dow, isHoli);
+                        const assignedNames = new Set(assigned.map(a => a.name));
                         const shiftsContainer = document.createElement('div');
                         shiftsContainer.className = 'cell-shifts';
 
-                        submissions.forEach(sub => {
-                            let willWork = false, workTime = '17:30';
-                            const isWeekendOrHoli = dow === 0 || dow === 6 || isHoli;
-                            if (sub.shiftType === 'all') {
-                                willWork = true;
-                                if (isWeekendOrHoli) workTime = sub.allDaysWeekendTime || '17:30';
-                            } else if (sub.dates) {
-                                const match = sub.dates.find(d => d.dateLabel === `${month}/${i}`);
-                                if (match) { willWork = true; workTime = match.time; }
-                            }
-                            if (willWork) {
-                                const badge = document.createElement('div');
-                                badge.className = 'shift-badge' + (workTime === '16:30' ? ' time-1630' : '');
-                                badge.textContent = `${sub.name} (${workTime})`;
-                                // バッジタップで詳細モーダル（セルの休業日設定と区別）
-                                badge.addEventListener('click', (e) => {
-                                    e.stopPropagation();
+                        available.forEach(({ sub, workTime }) => {
+                            const assignableTimes = getAssignableTimes(workTime, dow);
+                            const badge = document.createElement('button');
+                            badge.type = 'button';
+                            badge.className = 'shift-badge candidate-badge'
+                                + (workTime === '16:30' ? ' time-1630' : '')
+                                + (assignedNames.has(sub.name) ? ' already-assigned' : '');
+                            badge.textContent = assignedNames.has(sub.name)
+                                ? `${sub.name} 採用済`
+                                : assignableTimes.length > 1
+                                    ? `＋ ${sub.name} (${assignableTimes.join(' / ')})`
+                                    : `＋ ${sub.name} (${assignableTimes[0]})`;
+                            badge.title = assignedNames.has(sub.name)
+                                ? 'この人は確定済みです'
+                                : 'この人をこの日のシフトに採用';
+                            badge.addEventListener('click', async (e) => {
+                                e.stopPropagation();
+                                if (assignedNames.has(sub.name)) {
                                     showDetailModal(sub);
-                                });
-                                shiftsContainer.appendChild(badge);
-                            }
+                                    return;
+                                }
+                                const startTime = assignableTimes.length > 1
+                                    ? (prompt(`${sub.name} さんの開始時間を選んでください（16:30 または 17:30）`, '17:30') || '').trim()
+                                    : assignableTimes[0];
+                                if (!startTime) return;
+                                if (!assignableTimes.includes(startTime)) {
+                                    alert(`${assignableTimes.join(' または ')} のどちらかで入力してください。`);
+                                    return;
+                                }
+                                badge.disabled = true;
+                                badge.textContent = '保存中...';
+                                try {
+                                    await saveAssignments(yearMonth, half, i, [
+                                        ...assigned,
+                                        { name: sub.name, startTime }
+                                    ]);
+                                } catch (err) {
+                                    console.error('確定シフト保存エラー:', err);
+                                    alert('確定シフトの保存に失敗しました。\n' + err.message);
+                                    badge.disabled = false;
+                                    badge.textContent = assignableTimes.length > 1
+                                        ? `＋ ${sub.name} (${assignableTimes.join(' / ')})`
+                                        : `＋ ${sub.name} (${assignableTimes[0]})`;
+                                }
+                            });
+                            shiftsContainer.appendChild(badge);
                         });
 
+                        const assignBox = document.createElement('div');
+                        assignBox.className = 'assignment-box';
+                        assignBox.innerHTML = `<div class="assignment-title">確定 <span>${getStaffingHint(dow, isHoli)}</span></div>`;
+
+                        if (assigned.length === 0) {
+                            const empty = document.createElement('div');
+                            empty.className = 'assignment-empty';
+                            empty.textContent = '未確定';
+                            assignBox.appendChild(empty);
+                        } else {
+                            assigned.forEach((item, idx) => {
+                                const row = document.createElement('div');
+                                row.className = 'assignment-row';
+
+                                const timeInput = document.createElement('input');
+                                timeInput.type = 'time';
+                                timeInput.value = item.startTime || '17:30';
+                                timeInput.className = 'assignment-time';
+                                timeInput.addEventListener('click', e => e.stopPropagation());
+                                timeInput.addEventListener('change', async e => {
+                                    e.stopPropagation();
+                                    const next = [...assigned];
+                                    next[idx] = { ...next[idx], startTime: timeInput.value || '17:30' };
+                                    try {
+                                        await saveAssignments(yearMonth, half, i, next);
+                                    } catch (err) {
+                                        console.error('確定シフト時間変更エラー:', err);
+                                        alert('開始時間の保存に失敗しました。\n' + err.message);
+                                    }
+                                });
+
+                                const name = document.createElement('span');
+                                name.className = 'assignment-name';
+                                name.textContent = item.name;
+
+                                const removeBtn = document.createElement('button');
+                                removeBtn.type = 'button';
+                                removeBtn.className = 'assignment-remove';
+                                removeBtn.textContent = '×';
+                                removeBtn.title = '確定から外す';
+                                removeBtn.addEventListener('click', async e => {
+                                    e.stopPropagation();
+                                    const next = assigned.filter((_, n) => n !== idx);
+                                    try {
+                                        await saveAssignments(yearMonth, half, i, next);
+                                    } catch (err) {
+                                        console.error('確定シフト削除エラー:', err);
+                                        alert('確定シフトの削除に失敗しました。\n' + err.message);
+                                    }
+                                });
+
+                                row.appendChild(timeInput);
+                                row.appendChild(name);
+                                row.appendChild(removeBtn);
+                                assignBox.appendChild(row);
+                            });
+                        }
+
+                        cell.appendChild(assignBox);
                         cell.appendChild(shiftsContainer);
                         cell.style.cursor = 'pointer';
                         cell.title = 'タップして休業日に設定';
@@ -711,18 +1003,23 @@ const app = (() => {
             } else {
                 if (unsubscribeShifts) unsubscribeShifts();
                 if (unsubscribeClosed) unsubscribeClosed();
+                if (unsubscribeAssignments) unsubscribeAssignments();
                 currentShifts     = [];
                 currentClosedDays = [];
-                renderCalendar([], []);
+                currentAssignments = {};
+                renderCalendar([], [], {});
             }
         };
 
         filterMonth.addEventListener('change', onFilterChange);
         filterHalf.addEventListener('change',  onFilterChange);
-        window.addEventListener('resize', () => renderCalendar(currentShifts, currentClosedDays));
+        window.addEventListener('resize', () => renderCalendar(currentShifts, currentClosedDays, currentAssignments));
 
         // 初期読み込み（来月・期間未選択状態）
-        renderCalendar([], []);
+        renderCalendar([], [], {});
+
+        document.getElementById('export-first-btn')?.addEventListener('click', () => exportShiftImage('first'));
+        document.getElementById('export-second-btn')?.addEventListener('click', () => exportShiftImage('second'));
 
         // ---- PIN変更（Firestore保存） ----
         document.getElementById('change-pin-btn')?.addEventListener('click', async () => {
@@ -737,6 +1034,7 @@ const app = (() => {
         document.getElementById('logout-btn')?.addEventListener('click', () => {
             if (unsubscribeShifts) unsubscribeShifts();
             if (unsubscribeClosed) unsubscribeClosed();
+            if (unsubscribeAssignments) unsubscribeAssignments();
             clearAuth();
             location.reload();
         });
@@ -747,7 +1045,7 @@ const app = (() => {
             if (isNaN(n) || n < 0) return;
             setStaffCount(n);
             if (staffCountInput) staffCountInput.value = n || '';
-            renderCalendar(currentShifts, currentClosedDays);
+            renderCalendar(currentShifts, currentClosedDays, currentAssignments);
         });
     };
 
