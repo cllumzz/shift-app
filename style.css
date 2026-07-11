@@ -539,6 +539,20 @@ button { font-family: inherit; cursor: pointer; border: none; }
     grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
     gap: 3px;
 }
+.candidate-select {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid #cfd8dc;
+    border-radius: 6px;
+    background: #fff;
+    color: #1B5E20;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.candidate-select:disabled {
+    color: #94a3b8;
+    background: #eef2f7;
+}
 .candidate-badge {
     width: 100%;
     border: 1px solid transparent;

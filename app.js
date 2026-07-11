@@ -525,6 +525,18 @@ const app = (() => {
             handleCandidateButton(button, event);
         }, true);
 
+        calendarGrid.addEventListener('change', (event) => {
+            const select = event.target.closest('.candidate-select');
+            if (!select || !calendarGrid.contains(select)) return;
+            event.stopPropagation();
+            const day = parseInt(select.dataset.day || '0', 10);
+            const name = select.dataset.name || '';
+            const startTime = select.value;
+            if (!day || !name || !startTime) return;
+            select.disabled = true;
+            addAssignmentOptimistic(day, name, startTime);
+        }, true);
+
         // ---- リアルタイムリスナー開始 ----
         const startListeners = (yearMonth, half) => {
             // 前回のリスナーを解除
@@ -940,28 +952,25 @@ const app = (() => {
                             nameLabel.textContent = assignedNames.has(sub.name) ? `${sub.name} 採用済` : sub.name;
                             wrap.appendChild(nameLabel);
 
-                            const timeRow = document.createElement('div');
-                            timeRow.className = 'candidate-time-row';
+                            const select = document.createElement('select');
+                            select.className = 'candidate-select';
+                            select.dataset.day = String(i);
+                            select.dataset.name = sub.name;
+                            select.disabled = assignedNames.has(sub.name);
+
+                            const blankOption = document.createElement('option');
+                            blankOption.value = '';
+                            blankOption.textContent = assignedNames.has(sub.name) ? '採用済み' : '採用する時間';
+                            select.appendChild(blankOption);
 
                             assignableTimes.forEach(startTime => {
-                                const badge = document.createElement('button');
-                                badge.type = 'button';
-                                badge.className = 'shift-badge candidate-badge'
-                                    + (startTime === '16:30' ? ' time-1630' : '')
-                                    + (assignedNames.has(sub.name) ? ' already-assigned' : '');
-                                badge.dataset.day = String(i);
-                                badge.dataset.name = sub.name;
-                                badge.dataset.time = startTime;
-                                badge.dataset.assigned = assignedNames.has(sub.name) ? '1' : '0';
-                                badge.textContent = assignedNames.has(sub.name) ? '詳細' : `＋${startTime}`;
-                                badge.title = assignedNames.has(sub.name)
-                                    ? 'この人は確定済みです'
-                                    : `${sub.name} さんを ${startTime} で採用`;
-                                badge.addEventListener('click', (e) => handleCandidateButton(badge, e));
-                                timeRow.appendChild(badge);
+                                const option = document.createElement('option');
+                                option.value = startTime;
+                                option.textContent = startTime;
+                                select.appendChild(option);
                             });
 
-                            wrap.appendChild(timeRow);
+                            wrap.appendChild(select);
                             shiftsContainer.appendChild(wrap);
                         });
 
