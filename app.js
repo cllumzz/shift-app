@@ -962,27 +962,24 @@ const app = (() => {
                             nameLabel.textContent = assignedNames.has(sub.name) ? `${sub.name} 採用済` : sub.name;
                             wrap.appendChild(nameLabel);
 
-                            const select = document.createElement('select');
-                            select.className = 'candidate-select';
-                            select.dataset.day = String(i);
-                            select.dataset.name = sub.name;
-                            select.disabled = assignedNames.has(sub.name);
-                            select.onchange = () => assignCandidateFromSelectHandler?.(select);
-                            select.setAttribute('onchange', 'window.shiftApp.assignCandidateFromSelect(this)');
-
-                            const blankOption = document.createElement('option');
-                            blankOption.value = '';
-                            blankOption.textContent = assignedNames.has(sub.name) ? '採用済み' : '採用する時間';
-                            select.appendChild(blankOption);
+                            const timeRow = document.createElement('div');
+                            timeRow.className = 'candidate-time-row';
 
                             assignableTimes.forEach(startTime => {
-                                const option = document.createElement('option');
-                                option.value = startTime;
-                                option.textContent = startTime;
-                                select.appendChild(option);
+                                const button = document.createElement('button');
+                                button.type = 'button';
+                                button.className = 'shift-badge candidate-badge';
+                                button.dataset.day = String(i);
+                                button.dataset.name = sub.name;
+                                button.dataset.time = startTime;
+                                button.dataset.assigned = assignedNames.has(sub.name) ? '1' : '0';
+                                button.disabled = assignedNames.has(sub.name);
+                                button.textContent = assignedNames.has(sub.name) ? '採用済み' : `＋${startTime}`;
+                                button.addEventListener('click', (event) => handleCandidateButton(button, event));
+                                timeRow.appendChild(button);
                             });
 
-                            wrap.appendChild(select);
+                            wrap.appendChild(timeRow);
                             shiftsContainer.appendChild(wrap);
                         });
 
