@@ -296,6 +296,8 @@ const adminV2 = (() => {
                         btn.dataset.time = time;
                         btn.disabled = assignedNames.has(item.name);
                         btn.textContent = assignedNames.has(item.name) ? '採用済み' : `＋${time}`;
+                        btn.onclick = () => window.adminV2AssignCandidate(btn);
+                        btn.setAttribute('onclick', 'window.adminV2AssignCandidate(this); return false;');
                         row.appendChild(btn);
                     });
                     option.appendChild(row);
@@ -529,6 +531,7 @@ const adminV2 = (() => {
         $('filter-month').value = `${year}-${String(month).padStart(2, '0')}`;
 
         document.addEventListener('click', handleAction, true);
+        window.adminV2AssignCandidate = (button) => assignCandidate(button);
         $('filter-month').addEventListener('change', loadData);
         $('filter-half').addEventListener('change', loadData);
         $('export-first-btn').addEventListener('click', () => exportImage('first'));
