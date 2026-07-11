@@ -568,6 +568,21 @@ button { font-family: inherit; cursor: pointer; border: none; }
     color: #94a3b8;
     cursor: default;
 }
+.day-close-btn {
+    width: 100%;
+    margin-top: 6px;
+    border: 1px solid rgba(244,67,54,0.28);
+    background: rgba(244,67,54,0.07);
+    color: #b71c1c;
+    border-radius: 6px;
+    padding: 5px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.day-close-btn:hover {
+    background: rgba(244,67,54,0.13);
+}
 
 .assignment-box {
     border: 1px solid rgba(76,175,80,0.24);

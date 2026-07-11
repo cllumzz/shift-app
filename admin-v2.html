@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理 | 店長用テスト版</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="admin-bg">
+
+    <div id="pin-overlay" class="pin-overlay">
+        <div class="pin-card">
+            <div class="pin-icon">🔐</div>
+            <h2>店長専用画面 テスト版</h2>
+            <p class="pin-hint">PINコードを入力してください<br><small style="color:#bbb;">初期PIN: 1234</small></p>
+            <div class="pin-dots" id="pin-dots">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="pin-error" id="pin-error"></div>
+            <div class="pin-keypad">
+                <button class="key-btn" data-val="1">1</button>
+                <button class="key-btn" data-val="2">2</button>
+                <button class="key-btn" data-val="3">3</button>
+                <button class="key-btn" data-val="4">4</button>
+                <button class="key-btn" data-val="5">5</button>
+                <button class="key-btn" data-val="6">6</button>
+                <button class="key-btn" data-val="7">7</button>
+                <button class="key-btn" data-val="8">8</button>
+                <button class="key-btn" data-val="9">9</button>
+                <button class="key-btn key-clear" data-val="clear">C</button>
+                <button class="key-btn" data-val="0">0</button>
+                <button class="key-btn key-del" data-val="del">⌫</button>
+            </div>
+            <a href="index.html" class="pin-back-link">← スタッフ用画面に戻る</a>
+        </div>
+    </div>
+
+    <div id="admin-content" class="hidden">
+        <div class="admin-container">
+            <header class="admin-header">
+                <div>
+                    <h1>シフト管理ダッシュボード テスト版</h1>
+                    <p class="admin-subtitle">採用ボタンを作り直した別枠ページです</p>
+                    <div class="admin-filters">
+                        <input type="month" id="filter-month">
+                        <select id="filter-half">
+                            <option value="all">期間を選択</option>
+                            <option value="first">前半 (1〜15日)</option>
+                            <option value="second">後半 (16〜月末)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="admin-header-actions">
+                    <button id="export-first-btn" class="btn-outline-sm">前半画像</button>
+                    <button id="export-second-btn" class="btn-outline-sm">後半画像</button>
+                    <button id="set-staff-count-btn" class="btn-outline-sm">人数設定</button>
+                    <button id="change-pin-btn" class="btn-outline-sm">PIN変更</button>
+                    <button id="logout-btn" class="btn-outline-sm">ログアウト</button>
+                </div>
+            </header>
+
+            <main>
+                <div class="stats-cards">
+                    <div class="stat-card"><h3>提出済み</h3><p class="stat-number" id="stat-submitted">—</p></div>
+                    <div class="stat-card"><h3>未提出</h3><p class="stat-number stat-orange" id="stat-not-yet">—</p><p class="stat-sub">人数設定が必要</p></div>
+                    <div class="stat-card"><h3>出勤可能</h3><p class="stat-number stat-green" id="stat-can-work">—</p></div>
+                    <div class="stat-card"><h3>休み希望</h3><p class="stat-number stat-red" id="stat-want-rest">—</p></div>
+                    <div class="stat-card"><h3>休業日</h3><p class="stat-number stat-orange" id="stat-closed">—</p></div>
+                </div>
+
+                <div class="legend-row">
+                    <span class="legend-item"><span class="legend-dot teikyu"></span>定休日（水）</span>
+                    <span class="legend-item"><span class="legend-dot kyugyo"></span>休業日</span>
+                    <span class="legend-item"><span class="badge-demo assigned">確定</span>採用済み</span>
+                </div>
+
+                <div id="submissions-list-section" style="display:none; margin-bottom:16px;">
+                    <div class="submissions-list-header">
+                        <span>提出一覧</span>
+                        <span style="font-size:0.78rem; color:var(--muted);">名前をタップで詳細・備考を確認</span>
+                    </div>
+                    <div id="submissions-list"></div>
+                </div>
+
+                <div class="calendar-container">
+                    <div class="calendar-header" id="calendar-header"></div>
+                    <div class="calendar-grid" id="calendar-grid" style="display:none;"></div>
+                    <div id="no-data" class="hidden text-center" style="padding:2rem; color:#888;">
+                        月と期間を選択してください。
+                    </div>
+                </div>
+            </main>
+
+            <footer>
+                <a href="admin.html" class="admin-link">← 通常の店長画面へ</a>
+            </footer>
+        </div>
+    </div>
+
+    <div id="detail-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">詳細</h3>
+                <button id="modal-close" class="modal-close-btn">✕</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="config.js"></script>
+    <script src="admin-v2.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            adminV2.init();
+        });
+    </script>
+</body>
+</html>
