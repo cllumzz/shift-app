@@ -538,6 +538,16 @@ const app = (() => {
             handleCandidateButton(button, event);
         }, true);
 
+        const handleCandidatePress = (event) => {
+            const button = event.target.closest('.candidate-badge');
+            if (!button || !calendarGrid.contains(button)) return;
+            handleCandidateButton(button, event);
+        };
+
+        calendarGrid.addEventListener('pointerdown', handleCandidatePress, true);
+        calendarGrid.addEventListener('mousedown', handleCandidatePress, true);
+        calendarGrid.addEventListener('touchstart', handleCandidatePress, true);
+
         calendarGrid.addEventListener('change', (event) => {
             const select = event.target.closest('.candidate-select');
             if (!select || !calendarGrid.contains(select)) return;
