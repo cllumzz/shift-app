@@ -464,18 +464,37 @@ button { font-family: inherit; cursor: pointer; border: none; }
 }
 
 .calendar-cell {
-    min-height: 88px;
+    min-height: 96px;
+    background: #fff;
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px;
+    border-radius: 8px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
-    transition: background 0.1s;
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: box-shadow 0.12s;
 }
-.calendar-cell:not(.out-of-range):not(.cell-teikyu):hover { background: #f5fff5; }
-.calendar-cell.out-of-range { background: #fafafa; border-color: transparent; }
-.calendar-cell.cell-teikyu { background: var(--teikyu-bg); cursor: default !important; }
-.calendar-cell.cell-kyugyo { background: var(--kyugyo-bg); }
+.calendar-cell:not(.out-of-range):not(.cell-teikyu):hover {
+    box-shadow: 0 2px 8px rgba(76,175,80,0.12);
+    border-color: #a7f3d0;
+}
+.calendar-cell.out-of-range {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+.calendar-cell.cell-teikyu {
+    background: var(--teikyu-bg);
+    border-color: #CFD8DC;
+    box-shadow: none;
+    cursor: default !important;
+}
+.calendar-cell.cell-kyugyo {
+    background: var(--kyugyo-bg);
+    border-color: #FFCC80;
+    box-shadow: none;
+}
 
 .cell-date {
     font-weight: 600;
@@ -509,6 +528,21 @@ button { font-family: inherit; cursor: pointer; border: none; }
     text-overflow: ellipsis;
 }
 .shift-badge.time-1630 { background: rgba(21,101,192,0.1); color: var(--sat); }
+
+/* 候補バッジ（+17:30 ボタン）は shift-badge の色を上書き */
+.shift-badge.candidate-badge {
+    background: rgba(76,175,80,0.15);
+    color: #15803d;
+    border-color: #86efac;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: unset;
+}
+.shift-badge.candidate-badge.time-1630 {
+    background: rgba(21,101,192,0.1);
+    color: var(--sat);
+    border-color: #93c5fd;
+}
 
 /* 既存データ読み込みステータス */
 .load-status {
@@ -672,6 +706,134 @@ footer { margin-top: 32px; text-align: center; }
 .modal-timestamp {
     font-size: 0.82rem;
     color: var(--muted);
+}
+
+/* ===== 確定シフト (Assignment box) ===== */
+.assignment-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 5px 7px;
+    margin-bottom: 5px;
+    font-size: 0.72rem;
+}
+
+.assignment-title {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: #15803d;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
+}
+.assignment-title span {
+    font-weight: 400;
+    color: #9ca3af;
+    font-size: 0.62rem;
+    white-space: nowrap;
+}
+
+.assignment-empty {
+    color: #9ca3af;
+    font-size: 0.66rem;
+    font-style: italic;
+}
+
+.assignment-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.assignment-time {
+    border: 1px solid #86efac;
+    border-radius: 4px;
+    padding: 1px 3px;
+    font-size: 0.65rem;
+    font-family: inherit;
+    background: #fff;
+    color: #15803d;
+    font-weight: 600;
+    width: 56px;
+    flex-shrink: 0;
+}
+
+.assignment-name {
+    font-size: 0.7rem;
+    color: #1f2937;
+    font-weight: 500;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.assignment-remove {
+    background: transparent;
+    border: none;
+    color: #d1d5db;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0 1px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.12s;
+}
+.assignment-remove:hover { color: var(--danger); }
+
+/* ===== 候補者 (Candidates) ===== */
+.cell-shifts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 5px 6px;
+    flex: 1;
+}
+
+.candidate-option {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 3px;
+    border-top: 1px solid #e5e7eb;
+}
+.candidate-option:first-child { border-top: none; padding-top: 0; }
+
+.candidate-name {
+    font-size: 0.66rem;
+    color: #6b7280;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.candidate-time-row {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+}
+
+.candidate-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: opacity 0.1s, transform 0.08s;
+    line-height: 1.4;
+}
+.candidate-badge:not(:disabled):active { transform: scale(0.93); }
+.candidate-badge:disabled {
+    opacity: 0.45;
+    cursor: default;
 }
 
 /* ===== モバイル対応 ===== */
