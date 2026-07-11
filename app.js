@@ -519,6 +519,15 @@ const app = (() => {
             await addAssignmentOptimistic(day, name, startTime);
         };
 
+        window.assignCandidateFromSelect = async (select) => {
+            const day = parseInt(select.dataset.day || '0', 10);
+            const name = select.dataset.name || '';
+            const startTime = select.value;
+            if (!day || !name || !startTime || select.disabled) return;
+            select.disabled = true;
+            await addAssignmentOptimistic(day, name, startTime);
+        };
+
         calendarGrid.addEventListener('click', (event) => {
             const button = event.target.closest('.candidate-badge');
             if (!button || !calendarGrid.contains(button)) return;
@@ -957,6 +966,8 @@ const app = (() => {
                             select.dataset.day = String(i);
                             select.dataset.name = sub.name;
                             select.disabled = assignedNames.has(sub.name);
+                            select.onchange = () => window.assignCandidateFromSelect(select);
+                            select.setAttribute('onchange', 'window.assignCandidateFromSelect(this)');
 
                             const blankOption = document.createElement('option');
                             blankOption.value = '';
