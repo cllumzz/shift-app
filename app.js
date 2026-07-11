@@ -18,6 +18,8 @@ const app = (() => {
     // "2026-07_first_山田太郎" のような形式でユニークを保証
     const shiftDocId = (yearMonth, half, name) =>
         `${yearMonth}_${half}_${name.trim()}`;
+    const assignmentDocId = (yearMonth, half) =>
+        `assigned_${yearMonth}_${half}`;
 
     // ---- Firestore: シフト保存（上書き） ----
     const saveShift = async (submission) => {
@@ -61,6 +63,38 @@ const app = (() => {
         if (idx >= 0) days.splice(idx, 1);
         else          { days.push(day); days.sort((a, b) => a - b); }
         await ref.set({ days });
+    };
+
+    // ---- Firestore: 店長確定シフト保存 ----
+    const saveAssignments = async (yearMonth, half, day, assignments) => {
+        const cleaned = assignments
+            .filter(a => a && a.name && a.startTime)
+            .map(a => ({ name: String(a.name).trim(), startTime: String(a.startTime).trim() }));
+        const docRef = db.collection(COL_SETTINGS).doc(assignmentDocId(yearMonth, half));
+        try {
+            await docRef.update({
+                [`days.${day}`]: cleaned,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (e) {
+            if (e.code === 'not-found') {
+                await docRef.set({
+                    targetMonth: yearMonth,
+                    targetHalf: half,
+                    days: { [day]: cleaned },
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                throw e;
+            }
+        }
+    };
+
+    const getAssignments = async (yearMonth, half) => {
+        const snap = await db.collection(COL_SETTINGS)
+            .doc(assignmentDocId(yearMonth, half))
+            .get();
+        return snap.exists ? (snap.data().days || {}) : {};
     };
 
     // ---- PIN 管理（Firestore） ----
@@ -749,6 +783,127 @@ const app = (() => {
             if (staffCountInput) staffCountInput.value = n || '';
             renderCalendar(currentShifts, currentClosedDays);
         });
+
+        // ---- 画像エクスポート ----
+        const normalizeAssignments = (items) =>
+            [...(items || [])]
+                .filter(a => a && a.name)
+                .sort((a, b) => {
+                    const at = a.startTime || '', bt = b.startTime || '';
+                    return at !== bt ? at.localeCompare(bt) : (a.name || '').localeCompare(b.name || '', 'ja');
+                });
+
+        const drawRoundRect = (ctx, x, y, w, h, r) => {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        };
+
+        const exportShiftImage = async (half) => {
+            const yearMonth = filterMonth.value;
+            if (!yearMonth) { alert('対象月を選択してください。'); return; }
+
+            const [yearStr, monthStr] = yearMonth.split('-');
+            const year = parseInt(yearStr, 10);
+            const month = parseInt(monthStr, 10);
+            const closedDays = await getClosedDays(yearMonth).catch(() => []);
+            const assignments = await getAssignments(yearMonth, half).catch(err => {
+                alert('確定シフトの取得に失敗しました: ' + err.message);
+                return {};
+            });
+
+            const days = getDaysInPeriod(yearMonth, half, closedDays).filter(d => !d.isUnavailable);
+            const halfLabel = half === 'first' ? '前半' : '後半';
+            const scale = 2;
+            const width = 1080;
+            const rowHeight = 96;
+            const headerHeight = 190;  // タイトル・サブタイトル・テーブルヘッダーが重ならない高さ
+            const footerHeight = 46;
+            const height = headerHeight + days.length * rowHeight + footerHeight;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale, scale);
+
+            ctx.fillStyle = '#f6f8fb';
+            ctx.fillRect(0, 0, width, height);
+
+            // タイトル
+            ctx.fillStyle = '#1f2937';
+            ctx.font = '700 44px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillText(`${year}年${month}月 シフト表（${halfLabel}）`, 48, 72);
+
+            // サブタイトル（テーブルヘッダーと重ならない位置）
+            ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillStyle = '#64748b';
+            ctx.fillText('確定済みの開始時間のみ表示', 50, 112);
+
+            const x = 40;
+            const tableW = width - 80;
+            const dateW = 190;
+            const staffW = tableW - dateW;
+            const tableHeaderY = headerHeight;  // 190
+
+            // テーブルヘッダー背景（サブタイトルより十分下に配置）
+            ctx.fillStyle = '#e8f5e9';
+            drawRoundRect(ctx, x, tableHeaderY - 44, tableW, 44, 12);
+            ctx.fill();
+            ctx.fillStyle = '#1b5e20';
+            ctx.font = '700 22px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillText('日付', x + 26, tableHeaderY - 14);
+            ctx.fillText('確定シフト', x + dateW + 26, tableHeaderY - 14);
+
+            // 各行
+            days.forEach((day, index) => {
+                const rowY = tableHeaderY + index * rowHeight;
+                const isSun = day.dayOfWeek === 0 || day.isHoliday;
+                const isSat = day.dayOfWeek === 6;
+                const entries = normalizeAssignments(assignments[day.day]);
+                const bg = index % 2 === 0 ? '#ffffff' : '#fbfdff';
+
+                ctx.fillStyle = bg;
+                drawRoundRect(ctx, x, rowY, tableW, rowHeight - 10, 10);
+                ctx.fill();
+
+                ctx.fillStyle = isSun ? '#c62828' : isSat ? '#1565c0' : '#111827';
+                ctx.font = '700 28px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                ctx.fillText(`${month}/${day.day}`, x + 26, rowY + 38);
+                ctx.font = '500 19px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                ctx.fillText(`(${day.dayName})`, x + 106, rowY + 38);
+
+                ctx.fillStyle = '#d8dee9';
+                ctx.fillRect(x + dateW, rowY + 15, 1, rowHeight - 40);
+
+                if (entries.length === 0) {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '500 24px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                    ctx.fillText('未確定', x + dateW + 26, rowY + 43);
+                } else {
+                    ctx.fillStyle = '#111827';
+                    ctx.font = '700 25px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+                    const text = entries.map(e => `${e.startTime} ${e.name}`).join('   /   ');
+                    ctx.fillText(text, x + dateW + 26, rowY + 43, staffW - 52);
+                }
+            });
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '500 18px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+            ctx.fillText('Hoobi Shift', 48, height - 18);
+
+            const link = document.createElement('a');
+            link.download = `shift_${yearMonth}_${halfLabel}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        };
+
+        document.getElementById('export-first-btn')?.addEventListener('click', () => exportShiftImage('first'));
+        document.getElementById('export-second-btn')?.addEventListener('click', () => exportShiftImage('second'));
     };
 
     return { initStaffView, initAdminAuth };
