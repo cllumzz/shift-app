@@ -468,6 +468,63 @@ const app = (() => {
         let currentClosedDays = [];
         let currentAssignments = {};
 
+        const addAssignmentOptimistic = async (day, name, startTime) => {
+            const yearMonth = filterMonth.value;
+            const half = filterHalf.value;
+            const previous = normalizeAssignments(currentAssignments[day]);
+            if (previous.some(a => a.name === name)) return;
+
+            const next = [
+                ...previous,
+                { name, startTime }
+            ];
+
+            currentAssignments = {
+                ...currentAssignments,
+                [day]: next
+            };
+            renderCalendar(currentShifts, currentClosedDays, currentAssignments);
+
+            try {
+                await saveAssignments(yearMonth, half, day, next);
+            } catch (err) {
+                console.error('確定シフト保存エラー:', err);
+                currentAssignments = {
+                    ...currentAssignments,
+                    [day]: previous
+                };
+                renderCalendar(currentShifts, currentClosedDays, currentAssignments);
+                alert('確定シフトの保存に失敗しました。\n' + err.message);
+            }
+        };
+
+        const handleCandidateButton = async (button, event) => {
+            event?.preventDefault();
+            event?.stopPropagation();
+            if (!button || button.disabled) return;
+
+            const day = parseInt(button.dataset.day || '0', 10);
+            const name = button.dataset.name || '';
+            const startTime = button.dataset.time || '';
+            if (!day || !name || !startTime) return;
+
+            if (button.dataset.assigned === '1') {
+                const sub = currentShifts.find(s => s.name === name);
+                if (sub) showDetailModal(sub);
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = '保存中';
+            await addAssignmentOptimistic(day, name, startTime);
+        };
+
+        calendarGrid.addEventListener('click', (event) => {
+            const button = event.target.closest('.candidate-badge');
+            if (!button || !calendarGrid.contains(button)) return;
+            handleCandidateButton(button, event);
+        }, true);
+
         // ---- リアルタイムリスナー開始 ----
         const startListeners = (yearMonth, half) => {
             // 前回のリスナーを解除
@@ -892,47 +949,15 @@ const app = (() => {
                                 badge.className = 'shift-badge candidate-badge'
                                     + (startTime === '16:30' ? ' time-1630' : '')
                                     + (assignedNames.has(sub.name) ? ' already-assigned' : '');
+                                badge.dataset.day = String(i);
+                                badge.dataset.name = sub.name;
+                                badge.dataset.time = startTime;
+                                badge.dataset.assigned = assignedNames.has(sub.name) ? '1' : '0';
                                 badge.textContent = assignedNames.has(sub.name) ? '詳細' : `＋${startTime}`;
                                 badge.title = assignedNames.has(sub.name)
                                     ? 'この人は確定済みです'
                                     : `${sub.name} さんを ${startTime} で採用`;
-                                let isSaving = false;
-                                const selectCandidate = async (e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    if (isSaving) return;
-                                    if (assignedNames.has(sub.name)) {
-                                        showDetailModal(sub);
-                                        return;
-                                    }
-                                    isSaving = true;
-                                    badge.disabled = true;
-                                    badge.textContent = '保存中';
-                                    const previous = normalizeAssignments(currentAssignments[i]);
-                                    const next = [
-                                        ...previous,
-                                        { name: sub.name, startTime }
-                                    ];
-
-                                    currentAssignments = {
-                                        ...currentAssignments,
-                                        [i]: next
-                                    };
-                                    renderCalendar(currentShifts, currentClosedDays, currentAssignments);
-
-                                    try {
-                                        await saveAssignments(yearMonth, half, i, next);
-                                    } catch (err) {
-                                        console.error('確定シフト保存エラー:', err);
-                                        currentAssignments = {
-                                            ...currentAssignments,
-                                            [i]: previous
-                                        };
-                                        renderCalendar(currentShifts, currentClosedDays, currentAssignments);
-                                        alert('確定シフトの保存に失敗しました。\n' + err.message);
-                                    }
-                                };
-                                badge.addEventListener('click', selectCandidate);
+                                badge.addEventListener('click', (e) => handleCandidateButton(badge, e));
                                 timeRow.appendChild(badge);
                             });
 
