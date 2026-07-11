@@ -14,7 +14,6 @@ const app = (() => {
     const STAFF_COUNT_KEY= 'shift_staff_count';
     const DEFAULT_PIN    = '1234';
     let assignCandidateFromSelectHandler = null;
-    let assignCandidateFromButtonHandler = null;
 
     // ---- Firestore ドキュメント ID ----
     // "2026-07_first_山田太郎" のような形式でユニークを保証
@@ -521,8 +520,6 @@ const app = (() => {
             await addAssignmentOptimistic(day, name, startTime);
         };
 
-        assignCandidateFromButtonHandler = (button, event) => handleCandidateButton(button, event);
-
         assignCandidateFromSelectHandler = async (select) => {
             const day = parseInt(select.dataset.day || '0', 10);
             const name = select.dataset.name || '';
@@ -532,21 +529,20 @@ const app = (() => {
             await addAssignmentOptimistic(day, name, startTime);
         };
 
-        calendarGrid.addEventListener('click', (event) => {
-            const button = event.target.closest('.candidate-badge');
-            if (!button || !calendarGrid.contains(button)) return;
-            handleCandidateButton(button, event);
-        }, true);
-
         const handleCandidatePress = (event) => {
             const button = event.target.closest('.candidate-badge');
             if (!button || !calendarGrid.contains(button)) return;
             handleCandidateButton(button, event);
         };
 
+        calendarGrid.addEventListener('click', handleCandidatePress, true);
         calendarGrid.addEventListener('pointerdown', handleCandidatePress, true);
         calendarGrid.addEventListener('mousedown', handleCandidatePress, true);
         calendarGrid.addEventListener('touchstart', handleCandidatePress, true);
+        document.addEventListener('click', handleCandidatePress, true);
+        document.addEventListener('pointerdown', handleCandidatePress, true);
+        document.addEventListener('mousedown', handleCandidatePress, true);
+        document.addEventListener('touchstart', handleCandidatePress, true);
 
         calendarGrid.addEventListener('change', (event) => {
             const select = event.target.closest('.candidate-select');
@@ -988,8 +984,9 @@ const app = (() => {
                                 button.dataset.assigned = assignedNames.has(sub.name) ? '1' : '0';
                                 button.disabled = assignedNames.has(sub.name);
                                 button.textContent = assignedNames.has(sub.name) ? '採用済み' : `＋${startTime}`;
-                                button.onclick = (event) => assignCandidateFromButtonHandler?.(button, event);
-                                button.setAttribute('onclick', 'window.shiftApp.assignCandidateFromButton(this, event)');
+                                button.addEventListener('pointerdown', (event) => handleCandidateButton(button, event));
+                                button.addEventListener('mousedown', (event) => handleCandidateButton(button, event));
+                                button.addEventListener('touchstart', (event) => handleCandidateButton(button, event));
                                 button.addEventListener('click', (event) => handleCandidateButton(button, event));
                                 timeRow.appendChild(button);
                             });
@@ -1130,11 +1127,6 @@ const app = (() => {
     return {
         initStaffView,
         initAdminAuth,
-        assignCandidateFromButton: (button, event) => assignCandidateFromButtonHandler?.(button, event),
         assignCandidateFromSelect: (select) => assignCandidateFromSelectHandler?.(select)
     };
 })();
-
-if (typeof window !== 'undefined') {
-    window.shiftApp = app;
-}
