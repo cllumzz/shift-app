@@ -13,6 +13,7 @@ const app = (() => {
     const STAFF_NAME_KEY = 'shift_last_name';
     const STAFF_COUNT_KEY= 'shift_staff_count';
     const DEFAULT_PIN    = '1234';
+    let assignCandidateFromSelectHandler = null;
 
     // ---- Firestore ドキュメント ID ----
     // "2026-07_first_山田太郎" のような形式でユニークを保証
@@ -519,7 +520,7 @@ const app = (() => {
             await addAssignmentOptimistic(day, name, startTime);
         };
 
-        window.assignCandidateFromSelect = async (select) => {
+        assignCandidateFromSelectHandler = async (select) => {
             const day = parseInt(select.dataset.day || '0', 10);
             const name = select.dataset.name || '';
             const startTime = select.value;
@@ -966,8 +967,8 @@ const app = (() => {
                             select.dataset.day = String(i);
                             select.dataset.name = sub.name;
                             select.disabled = assignedNames.has(sub.name);
-                            select.onchange = () => window.assignCandidateFromSelect(select);
-                            select.setAttribute('onchange', 'window.assignCandidateFromSelect(this)');
+                            select.onchange = () => assignCandidateFromSelectHandler?.(select);
+                            select.setAttribute('onchange', 'window.shiftApp.assignCandidateFromSelect(this)');
 
                             const blankOption = document.createElement('option');
                             blankOption.value = '';
@@ -1114,5 +1115,13 @@ const app = (() => {
         });
     };
 
-    return { initStaffView, initAdminAuth };
+    return {
+        initStaffView,
+        initAdminAuth,
+        assignCandidateFromSelect: (select) => assignCandidateFromSelectHandler?.(select)
+    };
 })();
+
+if (typeof window !== 'undefined') {
+    window.shiftApp = app;
+}
