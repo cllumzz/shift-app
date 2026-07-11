@@ -19,6 +19,15 @@ const adminV2 = (() => {
 
     const $ = (id) => document.getElementById(id);
     const assignmentDocId = (yearMonth, half) => `assigned_${yearMonth}_${half}`;
+    const readAssignmentsData = (data = {}) => {
+        const days = { ...(data.days || {}) };
+        Object.keys(data).forEach(key => {
+            if (!key.startsWith('days.')) return;
+            const day = key.slice(5);
+            days[day] = data[key];
+        });
+        return days;
+    };
     const getStaffCount = () => parseInt(localStorage.getItem(STAFF_COUNT_KEY) || '0', 10);
     const setStaffCount = (n) => localStorage.setItem(STAFF_COUNT_KEY, String(n));
 
@@ -62,7 +71,7 @@ const adminV2 = (() => {
         await db.collection(COL_SETTINGS).doc(assignmentDocId(state.yearMonth, state.half)).set({
             targetMonth: state.yearMonth,
             targetHalf: state.half,
-            [`days.${day}`]: cleaned,
+            days: { [day]: cleaned },
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
     };
@@ -93,7 +102,7 @@ const adminV2 = (() => {
 
         state.submissions = shiftSnap.docs.map(doc => doc.data());
         state.closedDays = closedSnap.exists ? (closedSnap.data().days || []) : [];
-        state.assignments = assignedSnap.exists ? (assignedSnap.data().days || {}) : {};
+        state.assignments = assignedSnap.exists ? readAssignmentsData(assignedSnap.data()) : {};
         state.loading = false;
         render();
     };

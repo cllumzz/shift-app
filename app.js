@@ -21,6 +21,15 @@ const app = (() => {
         `${yearMonth}_${half}_${name.trim()}`;
     const assignmentDocId = (yearMonth, half) =>
         `assigned_${yearMonth}_${half}`;
+    const readAssignmentsData = (data = {}) => {
+        const days = { ...(data.days || {}) };
+        Object.keys(data).forEach(key => {
+            if (!key.startsWith('days.')) return;
+            const day = key.slice(5);
+            days[day] = data[key];
+        });
+        return days;
+    };
 
     // ---- Firestore: シフト保存（上書き） ----
     const saveShift = async (submission) => {
@@ -79,7 +88,7 @@ const app = (() => {
             .set({
                 targetMonth: yearMonth,
                 targetHalf: half,
-                [`days.${day}`]: cleaned,
+                days: { [day]: cleaned },
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
     };
@@ -88,7 +97,7 @@ const app = (() => {
         const snap = await db.collection(COL_SETTINGS)
             .doc(assignmentDocId(yearMonth, half))
             .get();
-        return snap.exists ? (snap.data().days || {}) : {};
+        return snap.exists ? readAssignmentsData(snap.data()) : {};
     };
 
     // ---- PIN 管理（Firestore） ----
@@ -587,7 +596,7 @@ const app = (() => {
             unsubscribeAssignments = db.collection(COL_SETTINGS)
                 .doc(assignmentDocId(yearMonth, half))
                 .onSnapshot(snap => {
-                    currentAssignments = snap.exists ? (snap.data().days || {}) : {};
+                    currentAssignments = snap.exists ? readAssignmentsData(snap.data()) : {};
                     renderCalendar(currentShifts, currentClosedDays, currentAssignments);
                 }, err => {
                     console.error('確定シフト購読エラー:', err);
