@@ -896,26 +896,43 @@ const app = (() => {
                                 badge.title = assignedNames.has(sub.name)
                                     ? 'この人は確定済みです'
                                     : `${sub.name} さんを ${startTime} で採用`;
-                                badge.addEventListener('click', async (e) => {
+                                let isSaving = false;
+                                const selectCandidate = async (e) => {
                                     e.stopPropagation();
+                                    e.preventDefault();
+                                    if (isSaving) return;
                                     if (assignedNames.has(sub.name)) {
                                         showDetailModal(sub);
                                         return;
                                     }
+                                    isSaving = true;
                                     badge.disabled = true;
                                     badge.textContent = '保存中';
+                                    const previous = normalizeAssignments(currentAssignments[i]);
+                                    const next = [
+                                        ...previous,
+                                        { name: sub.name, startTime }
+                                    ];
+
+                                    currentAssignments = {
+                                        ...currentAssignments,
+                                        [i]: next
+                                    };
+                                    renderCalendar(currentShifts, currentClosedDays, currentAssignments);
+
                                     try {
-                                        await saveAssignments(yearMonth, half, i, [
-                                            ...assigned,
-                                            { name: sub.name, startTime }
-                                        ]);
+                                        await saveAssignments(yearMonth, half, i, next);
                                     } catch (err) {
                                         console.error('確定シフト保存エラー:', err);
+                                        currentAssignments = {
+                                            ...currentAssignments,
+                                            [i]: previous
+                                        };
+                                        renderCalendar(currentShifts, currentClosedDays, currentAssignments);
                                         alert('確定シフトの保存に失敗しました。\n' + err.message);
-                                        badge.disabled = false;
-                                        badge.textContent = `＋${startTime}`;
                                     }
-                                });
+                                };
+                                badge.addEventListener('click', selectCandidate);
                                 timeRow.appendChild(badge);
                             });
 
